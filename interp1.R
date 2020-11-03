@@ -21,7 +21,7 @@ clone_cmdstan_stanc3 <- function(
   cmdstanr::rebuild_cmdstan(dir = clone_dir, cores = cores)
 }
 
-clone_cmdstan("customFunc")
+clone_cmdstan_stanc3("customFunc")
 
 library("cmdstanr"); library("tidyverse")
 set_cmdstan_path("/Users/hyunjimoon/customFunc/customFunc_cmdstan")
