@@ -1,0 +1,207 @@
+---
+title: "customFunction"
+output: html_document
+---
+## how to make custom function using a fork of Math with cmdstanr
+
+1. Forking math to your own Github
+I have forked Stan math (https://github.com/stan-dev/math) to my own repository (https://github.com/hyunjimoon/math).
+
+2. Writing the function you want to add to Math in your own branch
+For debug purpose, prepare some test data. We used interpolate function from `pramcma` to retrieve interpolated y values corresponding to `x_test`.
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(pracma)
+
+# Interpolate a sine wave at a few points
+
+x = seq(0.0, 5.0, length = 5)
+y = sin(x)
+
+# Print the values so can copy them to Stan
+
+options(digits = 10)
+print(x)
+print(y)
+
+# Plot the interpolated function against the true function
+
+tibble(x_int = seq(min(x), max(x), length = 500)) %>%
+  mutate(y_true = sin(x_int),
+         y_int = interp1(x, y, x_int)) %>%
+  gather(which, value, y_true, y_int) %>%
+  ggplot() +
+  geom_line(aes(x_int, value, group = which, color = which))
+
+# Here are some points at which we can test our function
+
+x_test = c(1.0, 1.7, 2.1, 4.0)
+
+# Print values at these points (to test Stan implementation)
+
+interp1(x, y, x_test)
+
+fd_deriv = function(x_test) {
+  dx = 1e-8
+  (interp1(x, y, x_test + dx) - interp1(x, y, x_test - dx)) / (2 * dx)
+}
+
+# Print gradients at these points (to test Stan implementation)
+# These won't be defined everywhere for linear interpolation
+
+fd_deriv(x_test)
+```
+
+3. Writing tests for the function you added in your own branch
+Code for interpolation is as follows which goes into `stan/math/prim/fun/interp1.hpp`.
+```{c++}
+#ifndef STAN_MATH_PRIM_FUN_INTERP1_HPP
+#define STAN_MATH_PRIM_FUN_INTERP1_HPP
+
+using namespace std;
+namespace stan {
+    namespace math {
+        template <typename T>
+        inline std::vector<T> interp1(const std::vector<double>& xData, const std::vector<double>& yData, const std::vector<T>& xTest)
+        {
+            using stan::math::index_type_t;
+            check_size_match("interp1", "x", xData.size(), "y", yData.size());
+            check_sorted("interp1", "x", xData);
+            int N = xData.size();
+            std::vector<double> dydx(N);
+            int M = xTest.size();
+            std::vector<T> yVals(M);
+
+            for (int i = 0; i < N - 1; i++){
+                dydx[i] = (yData[i+1] -  yData[i]) / (xData[i+1] - xData[i]);
+            }
+            for(int j = 0; j < M; j ++){
+                T x = xTest[j];
+                int i= 0;
+                while(x > xData[i]){
+                    i++;
+                }
+                if(x < xData[0]){yVals[j] = yData[0];}
+                else if (x > xData[N-1]){yVals[j] = yData[N-1];}
+                else{yVals[j] = yData[i-1] + dydx[i-1] * (x - xData[i-1]);}
+            }
+            return yVals;
+        }
+    }
+}
+
+#endif
+
+```
+
+Both the value and its gradient of the function's output should be tested. The file for the former goes in `test/unit/math/prim/fun/` and to test, type `python runTest.py test/unit/math/prim/fun/interp1_test.cpp` on your command.
+```{c++}
+#include <gtest/gtest.h>
+#include <stan/math/prim.hpp>
+#include <test/unit/math/expect_near_rel.hpp>
+#include <vector>
+
+TEST(MathPrim, interp1_test) {
+using stan::test::expect_near_rel;
+std::vector<double> x = {0.00, 1.25, 2.50, 3.75, 5.00};
+std::vector<double> y = {0.0000000000, 0.9489846194, 0.5984721441, -0.5715613187, -0.9589242747};
+
+std::vector<double> x_test = {1.0, 1.7, 2.1, 4.0};
+std::vector<double> y_ref = {0.7591876955, 0.8228001283, 0.7106361362, -0.6490339099}; // Reference values from R
+
+std::vector<double> y_test = stan::math::interp1(x, y, x_test);
+
+stan::test::expect_near_rel("test Interp1", y_test, y_ref);
+for (auto i: y_test)
+    std::cout << i << ' ';
+}
+```
+
+For the later test, autodiff, the file goes into `test/unit/math/rev/fun/` and can be tested with the command `python test/unit/math/rev/fun/interp1_test.cpp`
+```{c++}
+#include <stan/math/rev.hpp>
+#include <gtest/gtest.h>
+#include <limits>
+
+TEST(AgradRev, interp1_gradient) {
+using stan::math::var;
+using stan::math::interp1;
+
+std::vector<double> x = { 0.1, 1.2 };
+std::vector<double> y = { 1.0, -2.0 };
+
+var x_int = 0.7;
+std::vector<var> x_int_vec = { x_int };
+
+std::vector<var> y_int_vec = interp1(x, y, x_int_vec);
+var y_int = y_int_vec[0];
+
+//var y_int = interp1(x, y, x_int_vec);
+
+y_int.grad();
+
+// x_int.adj() should contain dy_int/dx_int
+EXPECT_FLOAT_EQ(-3.0 / 1.1, x_int.adj());
+}
+```
+
+4. Forking Cmdstan/Stan to your own Github and pointing them at Math
+
+
+5. Using your custom Cmdstan/Stan/Math stack and with cmdstanr (and hopefully cmdstanpy soon enough)
+
+
+
+writing the function itself, and debugging it all till it works.
+making a '.cpp' file
+2. 
+We
+
+clone_cmdstan <- function(
+  clone_dir,
+  cmdstan_url = "http://github.com/stan-dev/cmdstan",
+  stan_url = "http://github.com/stan-dev/stan",
+  math_url = "http://github.com/hyunjimoon/math",
+  cmdstan_branch = "develop",
+  stan_branch = "develop",
+  math_branch = "feature/interp1",
+  cores = 4) {
+  if (!dir.exists(clone_dir)) {
+    dir.create(clone_dir)  
+  }
+  git2r::clone(url = cmdstan_url, branch = cmdstan_branch, local_path = file.path(clone_dir))
+  git2r::clone(url = stan_url, branch = stan_branch, local_path = file.path(clone_dir, "stan"))
+  git2r::clone(url = math_url, branch = math_branch, local_path = file.path(clone_dir, "stan", "lib", "stan_math"))
+  cmdstanr::rebuild_cmdstan(dir = clone_dir, cores = cores)
+}
+
+clone_cmdstan(getwd())
+
+
+
+Whole process documented in [here](https://github.com/hyunjimoon/math/pull/1).
+
+
+
+
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
