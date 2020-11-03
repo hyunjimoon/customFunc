@@ -1,4 +1,4 @@
-clone_cmdstan <- function(
+clone_cmdstan_stanc3 <- function(
   clone_dir,
   cmdstan_url = "http://github.com/stan-dev/cmdstan",
   stan_url = "http://github.com/stan-dev/stan",
@@ -12,14 +12,16 @@ clone_cmdstan <- function(
   if (!dir.exists(clone_dir)) {
     dir.create(clone_dir)  
   }
-  git2r::clone(url = cmdstan_url, branch = cmdstan_branch, local_path = file.path(clone_dir))
-  git2r::clone(url = stan_url, branch = stan_branch, local_path = file.path(clone_dir, "stan"))
-  git2r::clone(url = math_url, branch = math_branch, local_path = file.path(clone_dir, "stan", "lib", "stan_math"))
-  git2r::clone(url = stanc3_url, branch = stanc3_branch, local_path = file.path(clone_dir))
+  cmdstan_dir = paste0(clone_dir, "_cmdstan")
+  stanc3_dir = paste0(clone_dir, "_stanc3")
+  git2r::clone(url = cmdstan_url, branch = cmdstan_branch, local_path = file.path(cmdstan_dir))
+  git2r::clone(url = stan_url, branch = stan_branch, local_path = file.path(cmdstan_dir, "stan"))
+  git2r::clone(url = math_url, branch = math_branch, local_path = file.path(cmdstan_dir, "stan", "lib", "stan_math"))
+  git2r::clone(url = stanc3_url, branch = stanc3_branch, local_path = file.path(stanc3_dir))
   cmdstanr::rebuild_cmdstan(dir = clone_dir, cores = cores)
 }
 
-clone_cmdstan(getwd())
+clone_cmdstan("customFunc")
 
 library("cmdstanr"); library("tidyverse")
 set_cmdstan_path("/Users/hyunjimoon/customFunc/customFunc_cmdstan")
