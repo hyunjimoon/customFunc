@@ -63,7 +63,7 @@ using namespace std;
 namespace stan {
     namespace math {
         template <typename T>
-        inline std::vector<T> interp1(const std::vector<double>& xData, const std::vector<double>& yData, const std::vector<T>& xTest)
+        inline std::vector<T> interp1(const std::vector<double>& xData, const std::vector<double>& yData, const std::vector<T>& xTest, std::ostream* pstream__)
         {
             using stan::math::index_type_t;
             check_size_match("interp1", "x", xData.size(), "y", yData.size());
@@ -202,7 +202,7 @@ set_cmdstan_path("customFunc_cmdstan")
 mod <- cmdstan_model("interp1.stan", compile = FALSE)
 modc <- mod$compile(stanc_options = list("allow-undefined" = TRUE))
 fit <- mod$sample(iter_warmup = 0, iter_sampling = 10)
-plot(fit$x_int)
+qqplot(fit$x_int)
 ```
 
 

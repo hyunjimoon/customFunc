@@ -19,9 +19,8 @@ clone_cmdstan <- function(
 
 clone_cmdstan("customFunc_cmdstan")
 
-
 library("cmdstanr")
-set_cmdstan_path("customFunc_cmdstan")
-mod <- cmdstan_model("interp1.stan", compile = FALSE)
-modc <- mod$compile(stanc_options = list("allow-undefined" = TRUE))
+set_cmdstan_path("customFunc_cmdstan2")
+mod <- cmdstan_model("interp1.stan", stanc_options = list("allow-undefined" = TRUE))
 fit <- mod$sample(iter_warmup = 0, iter_sampling = 10)
+qqplot(fit$x_int)
