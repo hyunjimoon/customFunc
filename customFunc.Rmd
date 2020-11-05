@@ -118,7 +118,7 @@ for (auto i: y_test)
 }
 ```
 
-For the later test, autodiff, the file goes into `test/unit/math/rev/fun/` and can be tested with the command `python test/unit/math/rev/fun/interp1_test.cpp`
+For the gradient test, autodiff, the file goes into `test/unit/math/rev/fun/` and can be tested with the command `python test/unit/math/rev/fun/interp1_test.cpp`
 ```{c++}
 #include <stan/math/rev.hpp>
 #include <gtest/gtest.h>
@@ -147,17 +147,8 @@ EXPECT_FLOAT_EQ(-3.0 / 1.1, x_int.adj());
 ```
 
 4. Forking Cmdstan/Stan to your own Github and pointing them at Math
-
-
-5. Using your custom Cmdstan/Stan/Math stack and with cmdstanr (and hopefully cmdstanpy soon enough)
-
-
-
-writing the function itself, and debugging it all till it works.
-making a '.cpp' file
-2. 
-We
-
+With the followig code, custom function code at certain math branch could be cloned and rebuilt into cmdstan. 
+```{r}
 clone_cmdstan <- function(
   clone_dir,
   cmdstan_url = "http://github.com/stan-dev/cmdstan",
@@ -176,32 +167,43 @@ clone_cmdstan <- function(
   cmdstanr::rebuild_cmdstan(dir = clone_dir, cores = cores)
 }
 
-clone_cmdstan(getwd())
-
-
-
-Whole process documented in [here](https://github.com/hyunjimoon/math/pull/1).
-
-
-
-
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
 ```
 
-## Including Plots
+5. Using custom Cmdstan/Stan/Math stack with cmdstanr
+New function `interp1` could be tested with the following stan file.
+```{stan}
+functions {
+  real[] interp1(real[] x, real[] y, real[] x_test);
+}
 
-You can also embed plots, for example:
+transformed data {
+  real x[2] = { -5.0, 10.0 };
+  real y[2] = { -3.0, 0.0 };
+}
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+parameters {
+  real<lower = -0.5, upper = 10.0> x_int[1];
+}
+
+transformed parameters {
+  real y_int = interp1(x, y, x_int)[1];
+}
+
+model {
+  x_int ~ normal(0, 5);
+}
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Because the slope of the line here is 1/5, then y_int should have a standard normal distribution if everything is `interp1` is functioning as we have extecpted.To check this posterior intervals line up with what we would expect from a standard normal: qnorm(c(0.05, 0.25, 0.75, 0.95), 0, 1).
+
+```{r}
+library("cmdstanr")
+set_cmdstan_path("customFunc_cmdstan")
+mod <- cmdstan_model("interp1.stan", compile = FALSE)
+modc <- mod$compile(stanc_options = list("allow-undefined" = TRUE))
+fit <- mod$sample(iter_warmup = 0, iter_sampling = 10)
+plot(fit$x_int)
+```
+
+
+The whole process is documented in [here](https://github.com/hyunjimoon/math/pull/1).
