@@ -6,7 +6,6 @@ clone_cmdstan <- function(
   cmdstan_branch = "develop",
   stan_branch = "develop",
   math_branch = "feature/interp1",
-  stanc3_branch = "feature/interp1",
   cores = 4) {
   if (!dir.exists(clone_dir)) {
     dir.create(clone_dir)  
