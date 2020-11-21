@@ -9,6 +9,18 @@ I have forked Stan math (https://github.com/stan-dev/math) to my own repository 
 
 2. Writing the function you want to add to Math in your own branch
 For debug purpose, prepare some test data. We used interpolate function from `pramcma` to retrieve interpolated y values corresponding to `x_test`.
+For runtime errors, we wish to compliel and run debugger and see what part is throwing the error. When assertion throws, debugger will stop and we could`
+
+several notes:
+1. if anything changes in the source, rebuild it with runTest.py before you run the debugger; lldb doesn't build the binary.
+2. build the program with debugging enabled. Inside your math folder, create the file make/local and put in it.
+```
+O=g
+CXXFLAGS=-g -ftemplate-backtrace-limit=0
+LDFLAGS=-g
+```
+3. before rebuild test, do `make clean` so everything rebuilds with debug symbols.
+4. look up the call stack: type 'r' to run the program, 'up' to move up the call stack to find code you recognize.
 
 ```{r setup, include=FALSE}
 library(tidyverse)
